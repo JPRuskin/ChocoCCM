@@ -13,7 +13,7 @@ function Connect-CCMServer {
     The credentials for your Central Management installation. You'll be prompted if left blank
 
     .EXAMPLE
-    Connect-CCMServer -Hostname localhost:8090
+    Connect-CCMServer -HostName localhost:8090
 
     .EXAMPLE
     $cred = Get-Credential ; Connect-CCMServer -Hostname localhost:8090 -Credential $cred
@@ -22,7 +22,7 @@ function Connect-CCMServer {
     param(
         [Parameter(Mandatory, Position = 0)]
         [String]
-        $Hostname,
+        $HostName,
 
         [Parameter(Mandatory)]
         [System.Management.Automation.PSCredential]
@@ -32,24 +32,27 @@ function Connect-CCMServer {
         [switch]
         $UseSSL
     )
+    end {
+        $Protocol = if ($UseSSL) {
+            'https'
+        } else {
+            'http'
+        }
 
-    begin {
+        $LoginArguments = @{
+            Uri             = "$($Protocol)://$HostName/Account/Login"
+            Method          = "POST"
+            ContentType     = 'application/x-www-form-urlencoded'
+            SessionVariable = "Session"
+            Body            = @{
+                usernameOrEmailAddress = "$($Credential.UserName)"
+                password               = "$($Credential.GetNetworkCredential().Password)"
+            }
+        }
+
+        $Result = Invoke-WebRequest @LoginArguments -ErrorAction Stop
+
         $script:Hostname = $Hostname
-        $protocol = 'http'
-    }
-
-    process {
-        if ($UseSSL) {
-            $protocol = 'https'
-        }
-
-        $body = @{
-            usernameOrEmailAddress = "$($Credential.UserName)"
-            password               = "$($Credential.GetNetworkCredential().Password)"
-        }
-
-        $Result = Invoke-WebRequest -Uri "$($protocol)://$Hostname/Account/Login" -Method POST -ContentType 'application/x-www-form-urlencoded' -Body $body -SessionVariable Session -ErrorAction Stop
-
         $script:Session = $Session
         $script:Protocol = $protocol
     }
