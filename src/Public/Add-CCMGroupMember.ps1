@@ -27,15 +27,7 @@ function Add-CCMGroupMember {
         [ArgumentCompleter(
             {
                 param($Command, $Parameter, $WordToComplete, $CommandAst, $FakeBoundParams)
-                $r = (Get-CCMGroup).Name
-
-
-                if ($WordToComplete) {
-                    $r.Where{ $_ -match "^$WordToComplete" }
-                }
-                else {
-                    $r
-                }
+                (Get-CCMGroup).Name.Where{ $_ -match "^$WordToComplete" }
             }
         )]
         [string]
@@ -52,10 +44,6 @@ function Add-CCMGroupMember {
     )
 
     begin {
-        if (-not $Session) {
-            throw "Not authenticated! Please run Connect-CCMServer first!"
-        }
-
         $computers = Get-CCMComputer
         $groups = Get-CCMGroup
 
@@ -68,7 +56,7 @@ function Add-CCMGroupMember {
 
     process {
         switch ($PSCmdlet.ParameterSetName) {
-            { $Computer } {
+            'Computer' {
                 foreach ($c in $Computer) {
                     $computerId = $computers | Where-Object { $_.Name -eq $c } | Select-Object -ExpandProperty Id
                     if (-not $computerId) {
@@ -102,25 +90,22 @@ function Add-CCMGroupMember {
             }
         }
 
-        $body = @{
-            Name        = $current.Name
-            Id          = $current.Id
-            Description = $current.Description
-            Groups      = @($GroupCollection)
-            Computers   = @($ComputerCollection)
-        } | ConvertTo-Json -Depth 3
-
-        Write-Verbose $body
-        $irmParams = @{
-            Uri         = "$($protocol)://$hostname/api/services/app/Groups/CreateOrEdit"
-            Method      = "POST"
-            ContentType = "application/json"
-            Body        = $body
-            WebSession  = $Session
+        $ccmParams = @{
+            Slug   = "services/app/Groups/CreateOrEdit"
+            Method = "POST"
+            Body   = @{
+                Name        = $current.Name
+                Id          = $current.Id
+                Description = $current.Description
+                Groups      = @($GroupCollection)
+                Computers   = @($ComputerCollection)
+            }
         }
 
+        Write-Verbose $ccmParams.Body
+
         try {
-            $null = Invoke-RestMethod @irmParams -ErrorAction Stop
+            $null = Invoke-CCMApi @ccmParams -ErrorAction Stop
             $successGroup = Get-CCMGroupMember -Group $Name
 
             [pscustomobject]@{

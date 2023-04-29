@@ -63,14 +63,7 @@ function New-CCMDeploymentStep {
         [ArgumentCompleter(
             {
                 param($Command, $Parameter, $WordToComplete, $CommandAst, $FakeBoundParams)
-                $r = (Get-CCMDeployment).Name
-
-                if ($WordToComplete) {
-                    $r.Where{ $_ -match "^$WordToComplete" }
-                }
-                else {
-                    $r
-                }
+                (Get-CCMDeployment).Name.Where{ $_ -match "^$WordToComplete" }
             }
         )]
         [string]
@@ -84,14 +77,8 @@ function New-CCMDeploymentStep {
         [ArgumentCompleter(
             {
                 param($Command, $Parameter, $WordToComplete, $CommandAst, $FakeBoundParams)
-                $r = (Get-CCMGroup).Name
-
-                if ($WordToComplete) {
-                    $r.Where{ $_ -match "^$WordToComplete" }
-                }
-                else {
-                    $r
-                }
+                (Get-CCMGroup).Name.Where{ $_ -match "^$WordToComplete" -and $_ -notin $FakeBoundParams['TargetGroup'] }
+                # TODO: Test that this filters correctly
             }
         )]
         [string[]]
@@ -107,7 +94,7 @@ function New-CCMDeploymentStep {
 
         [Parameter()]
         [switch]
-        $RequireSuccessOnAllComputers = $false,
+        $RequireSuccessOnAllComputers,
 
         [Parameter()]
         [string[]]
@@ -133,63 +120,39 @@ function New-CCMDeploymentStep {
         [scriptblock]
         $Script
     )
-
-    begin {
-        if (-not $Session) {
-            throw "Not authenticated! Please run Connect-CCMServer first!"
+    end {
+        $Body = @{
+            Name                         = "$Name"
+            DeploymentPlanId             = "$(Get-CCMDeployment -Name $Deployment | Select-Object -ExpandProperty Id)"
+            DeploymentStepGroups         = @(
+                Get-CCMGroup -Group $TargetGroup | Select-Object Name, Id | ForEach-Object {
+                    [pscustomobject]@{ groupId = $_.id; groupName = $_.name }
+                }
+            )
+            ExecutionTimeoutInSeconds    = "$ExecutionTimeoutSeconds"
+            RequireSuccessOnAllComputers = "$RequireSuccessOnAllComputers"
+            failOnError                  = "$FailOnError"
+            validExitCodes               = "$($validExitCodes -join ',')"
         }
-    }
-
-    process {
         switch ($PSCmdlet.ParameterSetName) {
             'Basic' {
-                $Body = @{
-                    Name                         = "$Name"
-                    DeploymentPlanId             = "$(Get-CCMDeployment -Name $Deployment | Select-Object -ExpandProperty Id)"
-                    DeploymentStepGroups         = @(
-                        Get-CCMGroup -Group $TargetGroup | Select-Object Name, Id | ForEach-Object {
-                            [pscustomobject]@{ groupId = $_.id; groupName = $_.name }
-                        }
-                    )
-                    ExecutionTimeoutInSeconds    = "$ExecutionTimeoutSeconds"
-                    RequireSuccessOnAllComputers = "$RequireSuccessOnAllComputers"
-                    failOnError                  = "$FailOnError"
-                    validExitCodes               = "$($validExitCodes -join ',')"
-                    script                       = "$($ChocoCommand.ToLower())|$($PackageName)"
-                } | ConvertTo-Json -Depth 3
-
-                $Uri = "$($protocol)://$hostname/api/services/app/DeploymentSteps/CreateOrEdit"
+                $Slug = "services/app/DeploymentSteps/CreateOrEdit"
+                $Body.script = "$($ChocoCommand.ToLower())|$($PackageName)"
             }
             'Advanced' {
-                $Body = @{
-                    Name                         = "$Name"
-                    DeploymentPlanId             = "$(Get-CCMDeployment -Name $Deployment | Select-Object -ExpandProperty Id)"
-                    DeploymentStepGroups         = @(
-                        Get-CCMGroup -Group $TargetGroup | Select-Object Name, Id | ForEach-Object {
-                            [pscustomobject]@{ groupId = $_.id; groupName = $_.name }
-                        }
-                    )
-                    ExecutionTimeoutInSeconds    = "$ExecutionTimeoutSeconds"
-                    RequireSuccessOnAllComputers = "$RequireSuccessOnAllComputers"
-                    failOnError                  = "$FailOnError"
-                    validExitCodes               = "$($validExitCodes -join ',')"
-                    script                       = "$($Script.ToString())"
-                } | ConvertTo-Json -Depth 3
-
-                $Uri = "$($protocol)://$hostname/api/services/app/DeploymentSteps/CreateOrEditPrivileged"
+                $Slug = "services/app/DeploymentSteps/CreateOrEditPrivileged"
+                $Body.script = "$($Script.ToString())"
             }
         }
 
-        $irmParams = @{
-            Uri         = "$($Uri)"
-            Method      = "POST"
-            ContentType = "application/json"
-            WebSession  = $Session
-            Body        = $Body
+        $ccmParams = @{
+            Slug   = $Slug
+            Method = "POST"
+            Body   = $Body
         }
 
         try {
-            $null = Invoke-RestMethod @irmParams -ErrorAction Stop
+            $null = Invoke-CCMApi @ccmParams -ErrorAction Stop
         }
         catch {
             throw $_.Exception.Message

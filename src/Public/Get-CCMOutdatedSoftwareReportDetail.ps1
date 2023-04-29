@@ -19,42 +19,22 @@ function Get-CCMOutdatedSoftwareReportDetail {
         [ArgumentCompleter(
             {
                 param($Command, $Parameter, $WordToComplete, $CommandAst, $FakeBoundParams)
-                $r = (Get-CCMOutdatedSoftwareReport).creationTime
-
-                if ($WordToComplete) {
-                    $r.Where{ $_ -match "^$WordToComplete" }
-                }
-                else {
-                    $r
-                }
+                (Get-CCMOutdatedSoftwareReport).creationTime.Where{ $_ -match "^$WordToComplete" }
             }
         )]
         [string]
         $Report
     )
-
-    begin {
-        if (-not $Session) {
-            throw "Not authenticated! Please run Connect-CCMServer first!"
-        }
-    }
     process {
-        $reportId = Get-CCMOutdatedSoftwareReport | Where-Object { $_.creationTime -eq "$Report" } | Select-Object -ExpandProperty id
-
-        $irmParams = @{
-            Uri         = "$($protocol)://$hostname/api/services/app/OutdatedReports/GetAllByReportId?reportId=$reportId&sorting=outdatedReport.packageDisplayText%20asc&skipCount=0&maxResultCount=200"
-            Method      = "GET"
-            ContentType = "application/json"
-            WebSession  = $Session
-        }
+        $ReportId = Get-CCMOutdatedSoftwareReport | Where-Object { $_.creationTime -eq "$Report" } | Select-Object -ExpandProperty id
 
         try {
-            $response = Invoke-RestMethod @irmParams -ErrorAction Stop
+            $Response = Invoke-CCMApi -Slug "services/app/OutdatedReports/GetAllByReportId?reportId=$reportId&sorting=outdatedReport.packageDisplayText%20asc&skipCount=0&maxResultCount=200" -ErrorAction Stop
         }
         catch {
             throw $_.Exception.Message
         }
 
-        $response.result.items.outdatedReport
+        $Response.result.items.outdatedReport
     }
 }

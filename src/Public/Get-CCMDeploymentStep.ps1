@@ -37,44 +37,27 @@ function Get-CCMDeploymentStep {
         [switch]
         $IncludeResults
     )
-
-    begin {
-        if (-not $Session) {
-            throw "Not authenticated! Please run Connect-CCMServer first!"
-        }
-    }
-
     process {
         if (-not $Id) {
             $Id = $InputObject.Id
         }
 
         $params = @{
-            Uri        = "${script:Protocol}://${script:Hostname}/api/services/app/DeploymentSteps/GetDeploymentStepForEdit"
-            WebSession = $script:Session
-            Body       = @{ Id = $Id }
+            Slug = "services/app/DeploymentSteps/GetDeploymentStepForEdit"
+            Body = @{ Id = $Id }
         }
 
-        $result = Invoke-RestMethod @params
+        $DeploymentStep = Invoke-CCMApi @params
 
         if ($IncludeResults) {
-            $result | Select-Object -ExcludeProperty 'deploymentStepComputers' -Property @(
-                '*'
-                @{
-                    Name       = 'deploymentStepComputers'
-                    Expression = {
-                        $params = @{
-                            Uri        = "${script:Protocol}://${script:Hostname}/api/services/app/DeploymentStepComputers/GetAllByDeploymentStepId"
-                            WebSession = $script:Session
-                            Body       = @{ deploymentStepId = $_.id }
-                        }
-                        (Invoke-RestMethod @params).result
-                    }
-                }
-            )
+            # TODO: Check this overwrites correctly
+            $params = @{
+                Slug = "services/app/DeploymentStepComputers/GetAllByDeploymentStepId"
+                Body = @{ deploymentStepId = $_.id }
+            }
+            $DeploymentStep.deploymentStepComputers = (Invoke-CCMApi @params).result
         }
-        else {
-            $result
-        }
+
+        $DeploymentStep
     }
 }

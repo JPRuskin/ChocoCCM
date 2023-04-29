@@ -22,40 +22,28 @@ function Remove-CCMDeployment {
         [ArgumentCompleter(
             {
                 param($Command, $Parameter, $WordToComplete, $CommandAst, $FakeBoundParams)
-                $r = (Get-CCMDeployment -All).Name
-
-                if ($WordToComplete) {
-                    $r.Where{ $_ -match "^$WordToComplete" }
-                }
-                else {
-                    $r
-                }
+                (Get-CCMDeployment -All).Name.Where{ $_ -match "^$WordToComplete" }
             }
         )]
+        [Alias("Deployment")]
         [string[]]
-        $Deployment
+        $Name
     )
-
     begin {
-        if (-not $Session) {
-            throw "Not authenticated! Please run Connect-CCMServer first!"
-        }
-
         $deployId = [System.Collections.Generic.List[string]]::new()
-
-        $Deployment | ForEach-Object { $deployId.Add($(Get-CCMDeployment -Name $_ | Select-Object -ExpandProperty Id)) }
     }
-
     process {
+        Get-CCMDeployment | Where-Object { $_.Name -in $Name } | ForEach-Object { $deployId.Add($_.Id) }
+
+        # ? Why are we doing it like this?
         $deployId | ForEach-Object {
-            if ($PSCmdlet.ShouldProcess("$Deployment", "DELETE")) {
-                $irmParams = @{
-                    Uri         = "$($protocol)://$hostname/api/services/app/DeploymentPlans/Delete?Id=$($_)"
-                    Method      = "DELETE"
-                    ContentType = "application/json"
+            if ($PSCmdlet.ShouldProcess("$Name", "DELETE")) {
+                $ccmParams = @{
+                    Slug   = "services/app/DeploymentPlans/Delete?Id=$($_)"
+                    Method = "DELETE"
                 }
 
-                Invoke-RestMethod @irmParams
+                Invoke-CCMApi @ccmParams
             }
         }
     }

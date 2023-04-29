@@ -4,10 +4,10 @@ function Invoke-CCMApi {
             Calls the CCM API
 
         .EXAMPLE
-            Invoke-CcmApi
+            Invoke-CCMApi
     #>
     [Alias('ccm')]
-    [CmdletBinding()]
+    [CmdletBinding(DefaultParameterSetName = "Combine")]
     param(
         # The hostname (and port) of the machine in question.
         [Parameter(ParameterSetName = "Combine")]
@@ -15,7 +15,7 @@ function Invoke-CCMApi {
         [string]$HostName = $script:HostName,
 
         # The portion of the API call after /api/
-        [Parameter(Mandatory, ValueFromPipeline, ValueFromPipelineByPropertyName, ParameterSetName = "Combine")]
+        [Parameter(Mandatory, Position = 0, ValueFromPipeline, ValueFromPipelineByPropertyName, ParameterSetName = "Combine")]
         [string]$Slug,
 
         # The full URL of the API call
@@ -44,11 +44,19 @@ function Invoke-CCMApi {
             WebSession = $script:Session
         }
 
+        if ((Get-Command Invoke-RestMethod).Parameters.ContainsKey("UseBasicParsing")) {
+            $RestArguments.UseBasicParsing = $true
+        }
+
         if ($Body) {
             $RestArguments.ContentType = $ContentType
             $RestArguments.Body = switch ($ContentType) {
-                "application/json" {$Body | ConvertTo-Json}
-                "application/x-www-form-urlencoded" {$Body}  # This seems to not happen ever
+                "application/json" {
+                    $Body | ConvertTo-Json -Depth 5  # ? Consider handling the difference between 5 and 7 with single item arrays
+                }
+                "application/x-www-form-urlencoded" {
+                    $Body  # This seems to not happen ever, other than login
+                }
             }
         }
 

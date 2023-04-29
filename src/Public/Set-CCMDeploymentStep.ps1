@@ -60,14 +60,7 @@ function Set-CCMDeploymentStep {
         [ArgumentCompleter(
             {
                 param($Command, $Parameter, $WordToComplete, $CommandAst, $FakeBoundParams)
-                $r = (Get-CCMDeployment).Name
-
-                if ($WordToComplete) {
-                    $r.Where{ $_ -match "^$WordToComplete" }
-                }
-                else {
-                    $r
-                }
+                (Get-CCMDeployment).Name.Where{ $_ -match "^$WordToComplete" }
             }
         )]
         [string]
@@ -78,14 +71,7 @@ function Set-CCMDeploymentStep {
             {
                 param($Command, $Parameter, $WordToComplete, $CommandAst, $FakeBoundParams)
                 $d = (Get-CCMDeployment -Name $($FakeBoundParams.Deployment)).id
-                $idSteps = (Get-CCMDeployment -Id $d).deploymentSteps.Name
-
-                if ($WordToComplete) {
-                    $idSteps.Where{ $_ -match "^$WordToComplete" }
-                }
-                else {
-                    $idSteps
-                }
+                (Get-CCMDeployment -Id $d).deploymentSteps.Name.Where{ $_ -match "^$WordToComplete" }
             }
         )]
         [string]
@@ -95,14 +81,7 @@ function Set-CCMDeploymentStep {
         [ArgumentCompleter(
             {
                 param($Command, $Parameter, $WordToComplete, $CommandAst, $FakeBoundParams)
-                $r = (Get-CCMGroup -All).Name
-
-                if ($WordToComplete) {
-                    $r.Where{ $_ -match "^$WordToComplete" }
-                }
-                else {
-                    $r
-                }
+                (Get-CCMGroup -All).Name.Where{ $_ -match "^$WordToComplete" }
             }
         )]
         [string[]]
@@ -139,23 +118,12 @@ function Set-CCMDeploymentStep {
     )
 
     begin {
-        if (-not $Session) {
-            throw "Not authenticated! Please run Connect-CCMServer first!"
-        }
-
         $deployId = Get-CCMDeployment -Name $Deployment | Select-Object -ExpandProperty Id
         $deploymentSteps = Get-CCMDeployment -Id $deployId | Select-Object deploymentSteps
         $stepId = $deploymentSteps.deploymentSteps | Where-Object { $_.Name -eq "$Step" } | Select-Object -ExpandProperty id
 
-        $existingstepsParams = @{
-            Uri         = "$($protocol)://$hostname/api/services/app/DeploymentSteps/GetDeploymentStepForView?Id=$stepId"
-            Method      = "GET"
-            ContentType = "application/json"
-            WebSession  = $Session
-        }
-
         try {
-            $existingsteps = Invoke-RestMethod @existingstepsParams -ErrorAction Stop
+            $existingsteps = Invoke-RestMethod -Slug "services/app/DeploymentSteps/GetDeploymentStepForView?Id=$stepId" -ErrorAction Stop
         }
         catch {
             throw $_.Exception.Message
@@ -164,7 +132,7 @@ function Set-CCMDeploymentStep {
         $existingsteps = $existingsteps.result.deploymentStep
         $existingsteps
     }
-
+# TODO: YOLO
     process {
         #So many if statements, so little time
         foreach ($param in $PSBoundParameters) {

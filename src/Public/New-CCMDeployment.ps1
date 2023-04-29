@@ -19,24 +19,15 @@ function New-CCMDeployment {
         [string]
         $Name
     )
-
-    begin {
-        if (-not $Session) {
-            throw "Not authenticated! Please run Connect-CCMServer first!"
-        }
-    }
-
-    process {
-        $irmParams = @{
-            Uri         = "$($protocol)://$hostname/api/services/app/DeploymentPlans/CreateOrEdit"
-            Method      = "POST"
-            ContentType = "application/json"
-            Body        = @{ Name = "$Name" } | ConvertTo-Json
-            WebSession  = $Session
+    end {
+        $ccmParams = @{
+            Slug   = "services/app/DeploymentPlans/CreateOrEdit"
+            Method = "POST"
+            Body   = @{ Name = "$Name" }
         }
 
         try {
-            $record = Invoke-RestMethod @irmParams -ErrorAction Stop
+            $Response = Invoke-CCMApi @ccmParams -ErrorAction Stop
         }
         catch {
             throw $_.Exception.Message
@@ -44,7 +35,7 @@ function New-CCMDeployment {
 
         [pscustomobject]@{
             name = $Name
-            id   = $record.result.id
+            id   = $Response.result.id
         }
     }
 }

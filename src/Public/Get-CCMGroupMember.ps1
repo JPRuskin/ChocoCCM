@@ -10,7 +10,7 @@ function Get-CCMGroupMember {
     The Group to query
 
     .EXAMPLE
-    Get-CCMGroupMember -Group "WebServers"
+    Get-CCMGroupMember -Name "WebServers"
 
     #>
     [CmdletBinding(HelpUri = "https://docs.chocolatey.org/en-us/central-management/chococcm/functions/getccmgroupmember")]
@@ -19,37 +19,23 @@ function Get-CCMGroupMember {
         [ArgumentCompleter(
             {
                 param($Command, $Parameter, $WordToComplete, $CommandAst, $FakeBoundParams)
-                $r = (Get-CCMGroup -All).Name
-
-                if ($WordToComplete) {
-                    $r.Where{ $_ -match "^$WordToComplete" }
-                }
-                else {
-                    $r
-                }
+                (Get-CCMGroup -All).Name.Where{ $_ -match "^$WordToComplete" }
             }
         )]
+        [Alias('Group')]
         [string]
-        $Group
+        $Name
     )
-
-    begin {
-        if (-not $Session) {
-            throw "Not authenticated! Please run Connect-CCMServer first!"
-        }
-    }
-
     process {
-        $Id = (Get-CCMGroup -Group $Group).Id
-        $result = Get-CCMGroup -Id $Id
+        $Result = Get-CCMGroup -Id (Get-CCMGroup -Group $Name).Id
 
         [pscustomobject]@{
-            Id          = $result.Id
-            Name        = $result.Name
-            Description = $result.Description
-            Groups      = @($result.Groups | Where-Object { $_ })
-            Computers   = @($result.Computers | Where-Object { $_ })
-            CanDeploy   = $result.isEligibleForDeployments
+            Id          = $Result.Id
+            Name        = $Result.Name
+            Description = $Result.Description
+            Groups      = @($Result.Groups | Where-Object { $_ })
+            Computers   = @($Result.Computers | Where-Object { $_ })
+            CanDeploy   = $Result.isEligibleForDeployments
         }
     }
 }

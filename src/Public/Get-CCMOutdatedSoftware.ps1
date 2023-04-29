@@ -13,7 +13,6 @@ function Get-CCMOutdatedSoftware {
     param()
 
     process {
-        $r = Get-CCMSoftware | Where-Object { $_.isOutdated -eq $true }
-        $r
+        Get-CCMSoftware | Where-Object { $_.isOutdated -eq $true }
     }
 }

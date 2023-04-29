@@ -22,40 +22,24 @@ function Disable-CCMDeployment {
         [ArgumentCompleter(
             {
                 param($Command, $Parameter, $WordToComplete, $CommandAst, $FakeBoundParams)
-                $r = (Get-CCMDeployment).Name
-
-                if ($WordToComplete) {
-                    $r.Where{ $_ -match "^$WordToComplete" }
-                }
-                else {
-                    $r
-                }
+                (Get-CCMDeployment).Name.Where{ $_ -match "^$WordToComplete" }
             }
         )]
         [string]
         $Deployment
     )
-
-    begin {
-        if (-not $Session) {
-            throw "Not authenticated! Please run Connect-CCMServer first!"
-        }
-
+    end {
         $deployId = Get-CCMDeployment -Name $Deployment | Select-Object -ExpandProperty Id
-    }
 
-    process {
         if ($PSCmdlet.ShouldProcess("$Deployment", "ARCHIVE")) {
-            $irmParams = @{
-                Uri         = "$($protocol)://$hostname/api/services/app/DeploymentPlans/Archive"
-                Method      = "POST"
-                ContentType = "application/json"
-                Body        = @{ id = "$deployId" } | ConvertTo-Json
-                Websession  = $Session
+            $ccmParams = @{
+                Slug   = "services/app/DeploymentPlans/Archive"
+                Method = "POST"
+                Body   = @{ id = "$deployId" }
             }
 
             try {
-                $null = Invoke-RestMethod @irmParams -ErrorAction Stop
+                $null = Invoke-CCMApi @ccmParams -ErrorAction Stop
             }
             catch {
                 throw $_.Exception.Message

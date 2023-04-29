@@ -24,7 +24,7 @@ function Get-CCMDeployment {
     .EXAMPLE
     Get-CCMDeployment -Id 583 -IncludeStepResults
     #>
-    [CmdletBinding(DefaultParameterSetname = "default", HelpUri = "https://docs.chocolatey.org/en-us/central-management/chococcm/functions/getccmdeployment")]
+    [CmdletBinding(DefaultParameterSetname = "All", HelpUri = "https://docs.chocolatey.org/en-us/central-management/chococcm/functions/getccmdeployment")]
     param(
         [Parameter(ParameterSetName = "Name", Mandatory)]
         [string]
@@ -39,49 +39,30 @@ function Get-CCMDeployment {
         [switch]
         $IncludeStepResults
     )
-
-    begin {
-        if (-not $Session) {
-            throw "Not authenticated! Please run Connect-CCMServer first!"
-        }
-    }
-
-    process {
+    end {
         if (-not $Id) {
-            $records = Invoke-RestMethod -Uri "$($protocol)://$Hostname/api/services/app/DeploymentPlans/GetAll" -WebSession $Session
+            $Records = Invoke-CCMApi -Slug "services/app/DeploymentPlans/GetAll"
         }
 
-        switch ($PSCmdlet.ParameterSetName) {
+        $Result = switch ($PSCmdlet.ParameterSetName) {
             'Name' {
-                $queryId = $records.result | Where-Object { $_.Name -eq "$Name" } | Select-Object -ExpandProperty Id
-                $records = Invoke-RestMethod -Uri "$($protocol)://$Hostname/api/services/app/DeploymentPlans/GetDeploymentPlanForEdit?Id=$queryId" -WebSession $Session
-
-                if ($IncludeStepResults) {
-                    $result = $records.result.deploymentPlan
-                    $result.deploymentSteps = $result.deploymentSteps | Get-CCMDeploymentStep -IncludeResults
-
-                    $result
-                }
-                else {
-                    $records.result.deploymentPlan
-                }
+                $Id = $Records.result | Where-Object { $_.Name -eq "$Name" } | Select-Object -ExpandProperty Id
+                (Invoke-CCMApi -Slug "services/app/DeploymentPlans/GetDeploymentPlanForEdit?Id=$queryId").result.deploymentPlan
             }
             'Id' {
-                $records = Invoke-RestMethod -Uri "$($protocol)://$Hostname/api/services/app/DeploymentPlans/GetDeploymentPlanForEdit?Id=$id" -WebSession $Session
-
-                if ($IncludeStepResults) {
-                    $result = $records.result.deploymentPlan
-                    $result.deploymentSteps = $result.deploymentSteps | Get-CCMDeploymentStep -IncludeResults
-
-                    $result
-                }
-                else {
-                    $records.result.deploymentPlan
-                }
+                #? Could refactor this both ID and Name to use the same code path? Actually may need to check that both objects return the same values?
+                (Invoke-CCMApi -Slug "services/app/DeploymentPlans/GetDeploymentPlanForEdit?Id=$id").result.deploymentPlan
             }
-            default {
-                $records.result
+            'All' {
+                # TODO: Confirm that this should _not_ return the .deploymentPlan
+                $Records.result
             }
         }
+
+        if ($IncludeStepResults) {
+            $Result.deploymentSteps = $Result.deploymentSteps | Get-CCMDeploymentStep -IncludeResults
+        }
+
+        $Result
     }
 }

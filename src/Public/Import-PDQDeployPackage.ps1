@@ -23,7 +23,7 @@ function Import-PDQDeployPackage {
         $PdqXml
     )
 
-    process {
+    end {
         [xml]$xmlData = Get-Content $PdqXml
 
         $deploymentName = $xmlData.SelectNodes("//*[Name]").Name
@@ -76,9 +76,7 @@ function Import-PDQDeployPackage {
 
         Write-Verbose "Adding steps from imported package to Deployment"
         New-CCMDeploymentStep -Deployment $deploymentName -Name $deploymentSteps.Title @ccmSteps
-    }
 
-    end {
         Write-Warning "No targets will be defined for this deployment"
     }
 }

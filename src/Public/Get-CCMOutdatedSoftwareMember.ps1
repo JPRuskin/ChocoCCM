@@ -25,14 +25,7 @@ function Get-CCMOutdatedSoftwareMember {
         [ArgumentCompleter(
             {
                 param($Command, $Parameter, $WordToComplete, $CommandAst, $FakeBoundParams)
-                $r = (Get-CCMSoftware -All | Where-Object { $_.isOutdated -eq $true }).Name
-
-                if ($WordToComplete) {
-                    $r.Where{ $_ -match "^$WordToComplete" }
-                }
-                else {
-                    $r
-                }
+                (Get-CCMSoftware -All | Where-Object { $_.isOutdated -eq $true }).Name.Where{ $_ -match "^$WordToComplete" }
             }
         )]
         [string]
@@ -42,26 +35,12 @@ function Get-CCMOutdatedSoftwareMember {
         [ArgumentCompleter(
             {
                 param($Command, $Parameter, $WordToComplete, $CommandAst, $FakeBoundParams)
-                $r = (Get-CCMSoftware -All | Where-Object { $_.isOutdated -eq $true }).packageId
-
-                if ($WordToComplete) {
-                    $r.Where{ $_ -match "^$WordToComplete" }
-                }
-                else {
-                    $r
-                }
+                (Get-CCMSoftware -All | Where-Object { $_.isOutdated -eq $true }).packageId.Where{ $_ -match "^$WordToComplete" }
             }
         )]
         [string]
         $Package
     )
-
-    begin {
-        if (-not $Session) {
-            throw "Not authenticated! Please run Connect-CCMServer first!"
-        }
-    }
-
     process {
         if ($Software) {
             $id = Get-CCMSoftware -Software $Software | Select-Object -ExpandProperty softwareId
@@ -72,21 +51,18 @@ function Get-CCMOutdatedSoftwareMember {
         }
 
         $id | ForEach-Object {
-            $irmParams = @{
-                Uri         = "$($protocol)://$hostname/api/services/app/ComputerSoftware/GetAllPagedBySoftwareId?filter=&softwareId=$($_)&skipCount=0&maxResultCount=100"
-                Method      = "GET"
-                ContentType = "application/json"
-                WebSession  = $Session
+            $ccmParams = @{
+                Slug = "services/app/ComputerSoftware/GetAllPagedBySoftwareId?filter=&softwareId=$($_)&skipCount=0&maxResultCount=100"
             }
 
             try {
-                $record = Invoke-RestMethod @irmParams -ErrorAction Stop
+                $Response = Invoke-CCMApi @ccmParams -ErrorAction Stop
             }
             catch {
                 $_.Exception.Message
             }
 
-            $record.result.items | ForEach-Object {
+            $Response.result.items | ForEach-Object {
                 [pscustomobject]@{
                     softwareId     = $_.softwareId
                     software       = $_.software.name

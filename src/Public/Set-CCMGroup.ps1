@@ -30,18 +30,12 @@ function Set-CCMGroup {
         [ArgumentCompleter(
             {
                 param($Command, $Parameter, $WordToComplete, $CommandAst, $FakeBoundParams)
-                $r = (Get-CCMGroup).Name
-
-                if ($WordToComplete) {
-                    $r.Where{ $_ -match "^$WordToComplete" }
-                }
-                else {
-                    $r
-                }
+                (Get-CCMGroup).Name.Where{ $_ -match "^$WordToComplete" }
             }
         )]
+        [Alias("Group")]
         [string]
-        $Group,
+        $Name,
 
         [Parameter()]
         [string]
@@ -51,16 +45,9 @@ function Set-CCMGroup {
         [string]
         $NewDescription
     )
-
-    begin {
-        if (-not $Session) {
-            throw "Not authenticated! Please run Connect-CCMServer first!"
-        }
-
-        $existing = Get-CCMGroupMember -Group $Group
-    }
-
     process {
+        $existing = Get-CCMGroupMember -Group $Name
+
         if ($NewName) {
             $Name = $NewName
         }
@@ -75,22 +62,20 @@ function Set-CCMGroup {
             $Description = $existing.description
         }
 
-        $irmParams = @{
-            Uri         = "$($protocol)://$hostname/api/services/app/Groups/CreateOrEdit"
-            Method      = "POST"
-            ContentType = "application/json"
-            Body        = @{
+        $ccmParams = @{
+            Slug   = "services/app/Groups/CreateOrEdit"
+            Method = "POST"
+            Body   = @{
                 Id          = $existing.id
                 Name        = $Name
                 Description = $Description
                 Groups      = $existing.Groups
                 Computers   = $existing.Computers
-            } | ConvertTo-Json
-            WebSession  = $Session
+            }
         }
 
         try {
-            $null = Invoke-RestMethod @irmParams -ErrorAction Stop
+            $null = Invoke-CCMApi @ccmParams -ErrorAction Stop
         }
         catch {
             throw $_.Exception.Message

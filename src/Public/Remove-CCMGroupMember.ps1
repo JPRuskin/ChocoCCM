@@ -27,14 +27,7 @@ function Remove-CCMGroupMember {
         [ArgumentCompleter(
             {
                 param($Command, $Parameter, $WordToComplete, $CommandAst, $FakeBoundParams)
-                $r = (Get-CCMGroup -All).Name
-
-                if ($WordToComplete) {
-                    $r.Where{ $_ -match "^$WordToComplete" }
-                }
-                else {
-                    $r
-                }
+                (Get-CCMGroup -All).Name.Where{ $_ -match "^$WordToComplete" }
             }
         )]
         [string]
@@ -48,13 +41,6 @@ function Remove-CCMGroupMember {
         [string[]]
         $ComputerMember
     )
-
-    begin {
-        if (-not $Session) {
-            throw "Not authenticated! Please run Connect-CCMServer first!"
-        }
-    }
-
     process {
         $currentMembers = Get-CCMGroupMember -Group $Group
         $computers = Get-CCMComputer
@@ -88,19 +74,15 @@ function Remove-CCMGroupMember {
             $currentMembers.Computers = @()
         }
 
-        $body = $currentMembers | ConvertTo-Json -Depth 3
-
-        $irmParams = @{
-            Uri         = "$($protocol)://$hostname/api/services/app/Groups/CreateOrEdit"
-            Method      = "POST"
-            ContentType = "application/json"
-            Body        = $body
-            WebSession  = $Session
+        $ccmParams = @{
+            Slug   = "services/app/Groups/CreateOrEdit"
+            Method = "POST"
+            Body   = $currentMembers
         }
 
-        Write-Verbose $body
+        Write-Verbose $ccmParams.Body
         try {
-            $result = Invoke-RestMethod @irmParams -ErrorAction Stop
+            $result = Invoke-CCMApi @ccmParams -ErrorAction Stop
             [pscustomobject]@{
                 Status            = $result.success
                 Group             = $Group

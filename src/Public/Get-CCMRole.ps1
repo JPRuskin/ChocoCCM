@@ -1,7 +1,7 @@
 function Get-CCMRole {
     <#
     .SYNOPSIS
-    Get roles available in Chococlatey Central Management
+    Get roles available in Chocolatey Central Management
 
     .DESCRIPTION
     Return information about roles available in Chocolatey Central Management
@@ -21,23 +21,11 @@ function Get-CCMRole {
         [string]
         $Name
     )
-
-    begin {
-        if (-not $Session) {
-            throw "Not authenticated! Please run Connect-CCMServer first!"
-        }
-    }
-
-    process {
-        $irmParams = @{
-            Uri         = "$($protocol)://$hostname/api/services/app/Role/GetRoles?permission="
-            Method      = "GET"
-            ContentType = "application/json"
-            WebSession  = $Session
-        }
-
+    end {
         try {
-            $response = Invoke-RestMethod @irmParams -ErrorAction Stop
+            # TODO: Test this function
+            # Is this ?permission= okay?
+            $AllRoles = (Invoke-CCMApi -Slug "services/app/Role/GetRoles?permission=" -ErrorAction Stop).result.items
         }
         catch {
             throw $_.Exception.Message
@@ -45,10 +33,11 @@ function Get-CCMRole {
 
         switch ($PSCmdlet.ParameterSetName) {
             'Name' {
-                $response.result.items | Where-Object { $_.name -eq $Name }
+                $AllRoles | Where-Object { $_.name -eq $Name }
             }
             default {
-                $response.result.items
+                # Does this not return everything after the role you want? Do we need an All / default parameter set?
+                $AllRoles
             }
         }
     }

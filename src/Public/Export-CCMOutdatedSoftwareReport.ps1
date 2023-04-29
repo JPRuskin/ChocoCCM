@@ -25,14 +25,7 @@ function Export-CCMOutdatedSoftwareReport {
         [ArgumentCompleter(
             {
                 param($Command, $Parameter, $WordToComplete, $CommandAst, $FakeBoundParams)
-                $r = (Get-CCMOutdatedSoftwareReport).creationTime
-
-                of ($WordToComplete) {
-                    $r.Where{ $_ -match "^$WordToComplete" }
-                }
-                else {
-                    $r
-                }
+                (Get-CCMOutdatedSoftwareReport).creationTime.Where{ $_ -match "^$WordToComplete" }
             }
         )]
         [string]
@@ -48,14 +41,7 @@ function Export-CCMOutdatedSoftwareReport {
         [string]
         $OutputFolder
     )
-
-    begin {
-        if (-not $Session) {
-            throw "Not authenticated! Please run Connect-CCMServer first!"
-        }
-    }
-
-    process {
+    end {
         $reportId = Get-CCMOutdatedSoftwareReport |
             Where-Object { $_.creationTime -eq "$Report" } |
             Select-Object -ExpandProperty id
@@ -66,19 +52,17 @@ function Export-CCMOutdatedSoftwareReport {
             WebSession  = $Session
         }
 
-        switch ($Type) {
+        $Slug = switch ($Type) {
             'PDF' {
-                $url = "$($protocol)://$hostname/api/services/app/OutdatedReports/GetOutdatedSoftwareToPdf?reportId=$reportId"
+                "services/app/OutdatedReports/GetOutdatedSoftwareToPdf?reportId=$reportId"
             }
             'Excel' {
-                $url = "$($protocol)://$hostname/api/services/app/OutdatedReports/GetOutdatedSoftwareToExcel?reportId=$reportId"
+                "services/app/OutdatedReports/GetOutdatedSoftwareToExcel?reportId=$reportId"
             }
         }
 
-        $irmParams.Add('Uri', "$url")
-
         try {
-            $record = Invoke-RestMethod @irmParams -ErrorAction Stop
+            $record = Invoke-CCMApi -Slug $Slug -ErrorAction Stop
             $fileName = $record.result.fileName
             $fileType = $record.result.fileType
             $fileToken = $record.result.fileToken

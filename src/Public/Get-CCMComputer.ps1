@@ -31,30 +31,20 @@ function Get-CCMComputer {
         $Computer,
 
         [Parameter(Mandatory, ParameterSetName = "Id")]
-        [int]
+        [uint]
         $Id
     )
-
-    begin {
-        if (-not $Session) {
-            throw "Unauthenticated! Please run Connect-CCMServer first"
-        }
-    }
-
-    process {
+    end {
         if (-not $Id) {
-            $records = Invoke-RestMethod -Uri "$($protocol)://$Hostname/api/services/app/Computers/GetAll" -WebSession $Session
+            $Records = Invoke-CCMApi -Slug "services/app/Computers/GetAll"
         }
-
         switch ($PSCmdlet.ParameterSetName) {
             "Computer" {
-                foreach ($c in $computer) {
-                    [pscustomobject]$records.result | Where-Object { $_.name -match "$c" }
-                }
+                [pscustomobject]$records.result | Where-Object { $_.name -in $Computer }
+                # TODO: Check that we didn't want the potential fuzziness here, e.g. matching "local1", "local2" etc when called with "oca" only
             }
             "Id" {
-                $records = Invoke-RestMethod -Uri "$($protocol)://$Hostname/api/services/app/Computers/GetComputerForEdit?Id=$Id" -WebSession $Session
-                $records
+                Invoke-CCMApi -Slug "services/app/Computers/GetComputerForEdit?Id=$Id"
             }
             default {
                 $records.result

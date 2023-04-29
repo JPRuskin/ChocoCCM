@@ -24,43 +24,20 @@ function Remove-CCMGroup {
         [ArgumentCompleter(
             {
                 param($Command, $Parameter, $WordToComplete, $CommandAst, $FakeBoundParams)
-                $r = (Get-CCMGroup -All).Name
-
-                if ($WordToComplete) {
-                    $r.Where{ $_ -match "^$WordToComplete" }
-                }
-                else {
-                    $r
-                }
+                (Get-CCMGroup -All).Name.Where{ $_ -match "^$WordToComplete" }
             }
         )]
+        [Alias('Group')]
         [string[]]
-        $Group
+        $Name
     )
+    end {
+        $Name | ForEach-Object {
+            $Group = Get-CCMGroup -Name $_
 
-    begin {
-        if (-not $Session) {
-            throw "Not authenticated! Please run Connect-CCMServer first!"
-        }
-    }
-
-    process {
-        $Group | ForEach-Object {
-            $id = Get-CCMGroup -Group $_ | Select-Object -ExpandProperty Id
-
-            $irmParams = @{
-                Uri         = "$($protocol)://$hostname/api/services/app/Groups/Delete?id=$id"
-                Method      = "DELETE"
-                ContentType = "application/json"
-                WebSession  = $Session
-            }
-
-            if ($PSCmdlet.ShouldProcess($Group, "DELETE")) {
-
-                Write-Verbose -Message "Removing group: $($_) with Id: $($id)"
-
+            if ($PSCmdlet.ShouldProcess("group '$($Group.Name)' with Id '$($Group.Id)'", "Removing")) {
                 try {
-                    $null = Invoke-RestMethod @irmParams -ErrorAction Stop
+                    $null = Invoke-CCMApi -Slug "services/app/Groups/Delete?id=$($Group.Id)" -Method Delete -ErrorAction Stop
                 }
                 catch {
                     throw $_.Exception.Message

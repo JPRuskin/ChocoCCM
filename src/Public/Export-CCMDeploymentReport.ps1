@@ -27,14 +27,7 @@ function Export-CCMDeploymentReport {
         [ArgumentCompleter(
             {
                 param($Command, $Parameter, $WordToComplete, $CommandAst, $FakeBoundParams)
-                $r = (Get-CCMDeployment -All).Name
-
-                if ($WordToComplete) {
-                    $r.Where{ $_ -match "^$WordToComplete" }
-                }
-                else {
-                    $r
-                }
+                (Get-CCMDeployment -All).Name.Where{ $_ -match "^$WordToComplete" }
             }
         )]
         [string]
@@ -51,34 +44,21 @@ function Export-CCMDeploymentReport {
         $OutputFolder
     )
 
-    begin {
-        if (-not $Session) {
-            throw "Not authenticated! Please run Connect-CCMServer first!"
-        }
-
+    end {
         $deployId = Get-CCMDeployment -Name $Deployment | Select-Object -ExpandProperty Id
-    }
 
-    process {
-        $irmParams = @{
-            Method      = "GET"
-            ContentType = "application/json"
-            WebSession  = $Session
-        }
-
-        switch ($Type) {
+        $Url = switch ($Type) {
             'PDF' {
-                $url = "$($protocol)://$hostname/api/services/app/DeploymentPlans/GetDeploymentPlanDetailsToPdf?deploymentPlanId=$deployId"
+                "services/app/DeploymentPlans/GetDeploymentPlanDetailsToPdf?deploymentPlanId=$deployId"
             }
             'Excel' {
-                $url = "$($protocol)://$hostname/api/services/app/DeploymentPlans/GetDeploymentPlanDetailsToExcel?deploymentPlanId=$deployId"
+                "services/app/DeploymentPlans/GetDeploymentPlanDetailsToExcel?deploymentPlanId=$deployId"
             }
         }
 
-        $irmParams.Add('Uri', "$url")
-
         try {
-            $record = Invoke-RestMethod @irmParams -ErrorAction Stop
+            $record = Invoke-CCMApi -Url $Url -ErrorAction Stop
+
             $fileName = $record.result.fileName
             $fileType = $record.result.fileType
             $fileToken = $record.result.fileToken
@@ -87,6 +67,7 @@ function Export-CCMDeploymentReport {
             throw $_.Exception
         }
 
+        # TODO: Contemplate if this operation is frequent enough to merit adding OutFile
         $downloadParams = @{
             Uri         = "$($protocol)://$hostname/File/DownloadTempFile?fileType=$fileType&fileToken=$fileToken&fileName=$fileName"
             OutFile     = "$OutputFolder\$fileName"

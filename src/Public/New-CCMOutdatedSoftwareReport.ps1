@@ -14,26 +14,14 @@ function New-CCMOutdatedSoftwareReport {
     #>
     [CmdletBinding(HelpUri = "https://docs.chocolatey.org/en-us/central-management/chococcm/functions/newccmoutdatedsoftwarereport")]
     param()
-
-    begin {
-        if (-not $Session) {
-            throw "Not authenticated! Please run Connect-CCMServer first!"
-        }
-    }
-
-    process {
-        $irmParams = @{
-            Uri         = "$($protocol)://$hostname/api/services/app/OutdatedReports/Create"
-            Method      = "POST"
-            ContentType = 'application/json'
-            WebSession  = $Session
-        }
-
+    end {
         try {
-            $null = Invoke-RestMethod @irmParams -ErrorAction Stop
+            $null = Invoke-CCMApi -Slug "services/app/OutdatedReports/Create" -ErrorAction Stop
         }
         catch {
             throw $_.Exception.Message
         }
+
+        #? Should we return the report ID?
     }
 }

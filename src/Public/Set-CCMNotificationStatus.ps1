@@ -29,14 +29,7 @@ function Set-CCMNotificationStatus {
         [switch]
         $Disable
     )
-
-    begin {
-        if (-not $Session) {
-            throw "Not authenticated! Please run Connect-CCMServer first!"
-        }
-    }
-
-    process {
+    end {
         switch ($PSCmdlet.ParameterSetName) {
             'Enabled' {
                 $status = $true
@@ -46,12 +39,10 @@ function Set-CCMNotificationStatus {
             }
         }
 
-        $irmParams = @{
-            Uri         = "$($protocol)://$hostname/api/services/app/Notification/UpdateNotificationSettings"
-            Method      = "PUT"
-            ContentType = "application/json"
-            WebSession  = $Session
-            Body        = @{
+        $ccmParams = @{
+            Slug   = "services/app/Notification/UpdateNotificationSettings"
+            Method = "PUT"
+            Body   = @{
                 receiveNotifications = $status
                 notifications        = @(
                     @{
@@ -59,11 +50,11 @@ function Set-CCMNotificationStatus {
                         isSubscribed = $true
                     }
                 )
-            } | ConvertTo-Json
+            }
         }
 
         try {
-            $null = Invoke-RestMethod @irmParams -ErrorAction Stop
+            $null = Invoke-CCMApi @ccmParams -ErrorAction Stop
         }
         catch {
             throw $_.Exception.Message

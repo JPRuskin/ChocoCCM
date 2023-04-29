@@ -79,31 +79,28 @@ function Add-CCMGroup {
     }
 
     process {
-        $body = @{
-            Name        = $Name
-            Description = $Description
-            Groups      = @($processedGroups)
-            Computers   = @($processedComputers)
-        } | ConvertTo-Json
-
-        $irmParams = @{
-            Uri         = "$($protocol)://$hostname/api/services/app/Groups/CreateOrEdit"
-            Method      = "POST"
-            ContentType = "application/json"
-            Body        = $body
-            WebSession  = $Session
+        $ccmParams = @{
+            Slug   = "services/app/Groups/CreateOrEdit"
+            Method = "POST"
+            Body   = @{
+                Name        = $Name
+                Description = $Description
+                Groups      = @($processedGroups)
+                Computers   = @($processedComputers)
+            }
         }
 
-        Write-Verbose $body
+        Write-Verbose $ccmParams.Body
 
         try {
-            $response = Invoke-RestMethod @irmParams -ErrorAction Stop
-        }
-
-        catch {
+            $null = Invoke-RestMethod @ccmParams -ErrorAction Stop  # TODO: Check the output of this, to see if we can pass back actual values?
+        } catch {
             throw $_.Exception.Message
         }
 
+        # TODO: Implement CCMGroup class and/or formatter
+        # TODO: See if these values make sense
+        # TODO: Evaluate groups / based on the pluralisation of the value, e.g. should we use processedGroups and computers
         [pscustomobject]@{
             name        = $Name
             description = $Description

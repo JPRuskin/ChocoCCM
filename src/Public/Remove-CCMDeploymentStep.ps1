@@ -25,14 +25,7 @@ function Remove-CCMDeploymentStep {
         [ArgumentCompleter(
             {
                 param($Command, $Parameter, $WordToComplete, $CommandAst, $FakeBoundParams)
-                $r = (Get-CCMDeployment)
-
-                if ($WordToComplete) {
-                    $r.Name.Where{ $_ -match "^$WordToComplete" }
-                }
-                else {
-                    $r.Name
-                }
+                (Get-CCMDeployment).Name.Where{ $_ -match "^$WordToComplete" }
             }
         )]
         [string]
@@ -42,41 +35,19 @@ function Remove-CCMDeploymentStep {
         [ArgumentCompleter(
             {
                 param($Command, $Parameter, $WordToComplete, $CommandAst, $FakeBoundParams)
-                $d = (Get-CCMDeployment -Name $($FakeBoundParams.Deployment)).id
-                $idSteps = (Get-CCMDeployment -Id $d).deploymentSteps.Name
-
-                if ($WordToComplete) {
-                    $idSteps.Where{ $_ -match "^$WordToComplete" }
-                }
-                else {
-                    $idSteps
-                }
+                (Get-CCMDeployment -Name $($FakeBoundParams.Deployment)).deploymentSteps.Name.Where{ $_ -match "^$WordToComplete" }
             }
         )]
         [string]
         $Step
     )
-
-    begin {
-        if (-not $Session) {
-            throw "Not authenticated! Please run Connect-CCMServer first!"
-        }
-
+    end {
         $deployId = Get-CCMDeployment -Name $Deployment | Select-Object -ExpandProperty Id
         $deploymentSteps = Get-CCMDeployment -Id $deployId | Select-Object deploymentSteps
         $stepId = $deploymentSteps.deploymentSteps | Where-Object { $_.Name -eq "$Step" } | Select-Object -ExpandProperty id
-    }
 
-    process {
         if ($PSCmdlet.ShouldProcess("$Step", "DELETE")) {
-            $irmParams = @{
-                Uri         = "$($protocol)://$hostname/api/services/app/DeploymentSteps/Delete?Id=$stepId"
-                Method      = "DELETE"
-                ContentType = "application/json"
-                WebSession  = $Session
-            }
-
-            $null = Invoke-RestMethod @irmParams
+            $null = Invoke-CCMApi -Slug "services/app/DeploymentSteps/Delete?Id=$stepId" -Method Delete
         }
     }
 }

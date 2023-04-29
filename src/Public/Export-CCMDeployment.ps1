@@ -31,14 +31,7 @@ function Export-CCMDeployment {
         [ArgumentCompleter(
             {
                 param($Command, $Parameter, $WordToComplete, $CommandAst, $FakeBoundParams)
-                $r = (Get-CCMDeployment -All).Name
-
-                if ($WordToComplete) {
-                    $r.Where{ $_ -match "^$WordToComplete" }
-                }
-                else {
-                    $r
-                }
+                (Get-CCMDeployment -All).Name.Where{ $_ -match "^$WordToComplete" }
             }
         )]
         [string]
@@ -56,24 +49,14 @@ function Export-CCMDeployment {
         [Switch]
         $AllowClobber
     )
-
-    process {
-        $exportParams = if ($AllowClobber) {
-            @{
-                Force = $true
-            }
-        }
-        else {
-            @{}
-        }
-
+    end {
         $DeploymentObject = Get-CCMDeployment -Name $Deployment
 
         if ($DeploymentStepsOnly) {
-            $DeploymentObject.deploymentSteps | Export-Clixml -Depth 10 -Path $OutFile -Force @exportParams
+            $DeploymentObject.deploymentSteps | Export-Clixml -Depth 10 -Path $OutFile -Force:$AllowClobber
         }
         else {
-            $DeploymentObject | Export-Clixml -Depth 10 -Path $OutFile @exportParams
+            $DeploymentObject | Export-Clixml -Depth 10 -Path $OutFile -Force:$AllowClobber
         }
     }
 }
